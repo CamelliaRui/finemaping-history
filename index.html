@@ -1,0 +1,1150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Evolution of Fine-Mapping Methods</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {
+            font-family: 'Times New Roman', Times, serif;
+            margin: 0;
+            padding: 20px;
+            background: #000000;
+            min-height: 100vh;
+            color: #ffffff;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: #000000;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(255,255,255,0.1);
+            overflow: hidden;
+            border: 1px solid #333333;
+        }
+
+        .header {
+            background: #000000;
+            color: white;
+            text-align: center;
+            padding: 30px;
+            border-bottom: 1px solid #333333;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 2.5em;
+            font-weight: 300;
+        }
+
+        .header p {
+            margin: 10px 0 0 0;
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .controls {
+            padding: 20px;
+            background: #111111;
+            border-bottom: 1px solid #333333;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .filter-group label {
+            font-weight: 600;
+            color: #ffffff;
+            white-space: nowrap;
+        }
+
+        select, button {
+            padding: 8px 12px;
+            border: 1px solid #555555;
+            border-radius: 5px;
+            background: #222222;
+            color: #ffffff;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: 'Times New Roman', Times, serif;
+        }
+
+        button {
+            background: #333333;
+            color: #ffffff;
+            border-color: #555555;
+        }
+
+        button:hover {
+            background: #555555;
+            border-color: #777777;
+        }
+
+        select:hover {
+            background: #333333;
+            border-color: #777777;
+        }
+
+        #timeline-container {
+            width: 100%;
+            height: 700px;
+            padding: 40px 60px;
+            box-sizing: border-box;
+            overflow-x: auto;
+            overflow-y: hidden;
+        }
+
+        .timeline-svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .timeline-axis {
+            stroke: #ffffff;
+            stroke-width: 3;
+        }
+
+        .year-label {
+            font-size: 14px;
+            font-weight: 600;
+            fill: #ffffff;
+            text-anchor: middle;
+            font-family: 'Times New Roman', Times, serif;
+        }
+
+        .year-node {
+            display: none; /* Hide the year circles */
+        }
+
+        .method-node {
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 10;
+            position: relative;
+        }
+
+        .method-rect {
+            rx: 5;
+            ry: 5;
+            stroke: #fff;
+            stroke-width: 2;
+        }
+
+        .method-rect:hover {
+            stroke: #007bff;
+            stroke-width: 3;
+            filter: drop-shadow(0 5px 10px rgba(0,123,255,0.3));
+        }
+
+        .method-text {
+            fill: white;
+            font-weight: 600;
+            text-anchor: middle;
+            pointer-events: none;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+            font-family: 'Times New Roman', Times, serif;
+        }
+
+        .connection-line {
+            stroke: #cccccc;
+            stroke-width: 2;
+            opacity: 0.6;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            z-index: 1;
+        }
+
+        .tooltip {
+            position: absolute;
+            background: rgba(0,0,0,0.9);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 12px;
+            max-width: 350px;
+            z-index: 1000;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .tooltip h4 {
+            margin: 0 0 8px 0;
+            color: #4fc3f7;
+            border-bottom: 1px solid #444;
+            padding-bottom: 5px;
+        }
+
+        .tooltip-section {
+            margin-bottom: 8px;
+        }
+
+        .tooltip-label {
+            font-weight: bold;
+            color: #ffc107;
+            margin-right: 5px;
+        }
+
+        .legend {
+            padding: 20px;
+            background: #111111;
+            border-top: 1px solid #333333;
+        }
+
+        .legend-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #ffffff;
+        }
+
+        .algorithm-colors {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .algorithm-chip {
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            color: white;
+            text-shadow: 1px 1px 1px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .chip-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+
+        .feature-badge {
+            display: inline-block;
+            padding: 2px 6px;
+            margin: 2px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 10px;
+            font-size: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Evolution of Fine-Mapping Methods</h1>
+            <p>Timeline Tree Visualization of Bayesian Fine-Mapping Approaches (2011-2025)</p>
+        </div>
+
+        <div class="controls">
+            <div class="filter-group">
+                <label>Algorithm:</label>
+                <select id="algorithmFilter">
+                    <option value="all">All Algorithms</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Features:</label>
+                <select id="featureFilter">
+                    <option value="all">All Features</option>
+                    <option value="functional">Functional Annotation</option>
+                    <option value="multi-ancestry">Multiple Ancestries</option>
+                    <option value="multi-trait">Multiple Traits</option>
+                    <option value="twas">TWAS Fine-mapping</option>
+                    <option value="summary">Summary Statistics</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <button onclick="zoomIn()">🔍 Zoom In</button>
+                <button onclick="zoomOut()">🔍 Zoom Out</button>
+                <button onclick="resetZoom()">↻ Reset View</button>
+            </div>
+            <button onclick="resetFilters()">Reset Filters</button>
+        </div>
+
+        <div id="timeline-container"></div>
+
+        <div class="tooltip" id="tooltip"></div>
+
+        <div class="legend">
+            <div class="legend-title">Algorithm Categories</div>
+            <div class="algorithm-colors" id="algorithmLegend"></div>
+            <div style="margin-top: 20px;">
+                <strong>Layout:</strong> Methods are arranged chronologically with years on the horizontal axis<br>
+                <strong>Color:</strong> Methods are colored by their primary algorithm type<br>
+                <strong>Authors:</strong> First author's last name et al. shown below method names<br>
+                <strong>Features:</strong> Small badges indicate special capabilities (F=Functional, M=Multi-ancestry, T=Multi-trait, W=TWAS)<br>
+                <strong>Navigation:</strong> Use mouse wheel to zoom, drag to pan, or use the zoom buttons<br>
+                <strong>Interaction:</strong> Hover for details, click on any method to open the original paper<br>
+                <strong>Papers:</strong> All methods link to their original research publications
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Fine-mapping methods data extracted from Table 1
+        const finemappingData = [
+            {
+                name: "pi-MASS",
+                year: 2011,
+                algorithm: "MCMC",
+                priorEffect: "Point-normal",
+                priorCausal: "Bernoulli-log-uniform",
+                functional: false,
+                multiAncestry: false,
+                multiTrait: false,
+                twas: false,
+                summaryStats: false,
+                description: "Early Bayesian variable selection using MCMC",
+                paperUrl: "https://doi.org/10.1214/11-AOAS454",
+                firstAuthor: "Guan et al."
+            },
+            {
+                name: "CAVIAR",
+                year: 2014,
+                algorithm: "Exhaustive",
+                priorEffect: "Point-normal",
+                priorCausal: "Bernoulli",
+                functional: false,
+                multiAncestry: true,
+                multiTrait: false,
+                twas: false,
+                summaryStats: true,
+                description: "Exhaustive search for causal variants",
+                paperUrl: "https://doi.org/10.1534/genetics.114.167908",
+                firstAuthor: "Hormozdiari et al."
+            },
+            {
+                name: "PAINTOR",
+                year: 2014,
+                algorithm: "Exhaustive/Importance",
+                priorEffect: "Point-normal",
+                priorCausal: "Bernoulli-logistic",
+                functional: true,
+                multiAncestry: true,
+                multiTrait: true,
+                twas: false,
+                summaryStats: true,
+                description: "Integrates functional annotations with fine-mapping",
+                paperUrl: "https://doi.org/10.1371/journal.pgen.1004722",
+                firstAuthor: "Kichaev et al."
+            },
+            {
+                name: "CAVIARBF",
+                year: 2015,
+                algorithm: "Exhaustive",
+                priorEffect: "Point-normal",
+                priorCausal: "Bernoulli",
+                functional: false,
+                multiAncestry: true,
+                multiTrait: false,
+                twas: false,
+                summaryStats: true,
+                description: "Bayes factor approach to fine-mapping",
+                paperUrl: "https://doi.org/10.1534/genetics.115.176107",
+                firstAuthor: "Chen et al."
+            },
+            {
+                name: "fastPAINTOR",
+                year: 2015,
+                algorithm: "Exhaustive/Importance",
+                priorEffect: "Point-normal",
+                priorCausal: "Bernoulli-logistic",
+                functional: true,
+                multiAncestry: true,
+                multiTrait: true,
+                twas: false,
+                summaryStats: true,
+                description: "Faster implementation of PAINTOR",
+                paperUrl: "https://doi.org/10.1093/bioinformatics/btw615",
+                firstAuthor: "Kichaev et al."
+            },
+            {
+                name: "FINEMAP",
+                year: 2016,
+                algorithm: "SSS",
+                priorEffect: "Point-normal",
+                priorCausal: "Bernoulli",
+                functional: false,
+                multiAncestry: false,
+                multiTrait: false,
+                twas: false,
+                summaryStats: true,
+                description: "Shotgun stochastic search algorithm",
+                paperUrl: "https://doi.org/10.1093/bioinformatics/btw018",
+                firstAuthor: "Benner et al."
+            },
+            {
+                name: "JAM",
+                year: 2016,
+                algorithm: "Exhaustive/MCMC",
+                priorEffect: "g-prior",
+                priorCausal: "Beta-binomial",
+                functional: false,
+                multiAncestry: false,
+                multiTrait: false,
+                twas: false,
+                summaryStats: true,
+                description: "Joint analysis of marginal effects",
+                paperUrl: "https://doi.org/10.1002/gepi.21953",
+                firstAuthor: "Newcombe et al."
+            },
+            {
+                name: "DAP-G",
+                year: 2016,
+                algorithm: "DAP",
+                priorEffect: "Point-normal",
+                priorCausal: "Bernoulli-logistic",
+                functional: true,
+                multiAncestry: false,
+                multiTrait: false,
+                twas: false,
+                summaryStats: true,
+                description: "Deterministic approximation of posteriors",
+                paperUrl: "https://doi.org/10.1016/j.ajhg.2016.03.029",
+                firstAuthor: "Wen et al."
+            },
+            {
+                name: "bfGWAS",
+                year: 2017,
+                algorithm: "EM-MCMC",
+                priorEffect: "Point-normal",
+                priorCausal: "Bernoulli-Beta",
+                functional: true,
+                multiAncestry: false,
+                multiTrait: false,
+                twas: false,
+                summaryStats: true,
+                description: "Bayes factor GWAS analysis",
+                paperUrl: "https://doi.org/10.1016/j.ajhg.2017.08.002",
+                firstAuthor: "Yang et al."
+            },
+            {
+                name: "FOCUS",
+                year: 2019,
+                algorithm: "Exhaustive",
+                priorEffect: "Point-normal",
+                priorCausal: "Bernoulli",
+                functional: false,
+                multiAncestry: false,
+                multiTrait: false,
+                twas: true,
+                summaryStats: true,
+                description: "Fine-mapping for transcriptome-wide association studies",
+                paperUrl: "https://doi.org/10.1038/s41588-019-0367-1",
+                firstAuthor: "Mancuso et al."
+            },
+            {
+                name: "SuSiE",
+                year: 2020,
+                algorithm: "IBSS",
+                priorEffect: "Normal",
+                priorCausal: "Multinomial",
+                functional: false,
+                multiAncestry: false,
+                multiTrait: false,
+                twas: false,
+                summaryStats: true,
+                description: "Sum of Single Effects model - foundational breakthrough",
+                paperUrl: "https://doi.org/10.1111/rssb.12388",
+                firstAuthor: "Wang et al."
+            },
+            {
+                name: "PolyFun + SuSiE",
+                year: 2020,
+                algorithm: "IBSS",
+                priorEffect: "Normal",
+                priorCausal: "Multinomial-discrete",
+                functional: true,
+                multiAncestry: false,
+                multiTrait: false,
+                twas: false,
+                summaryStats: true,
+                description: "Functionally-informed fine-mapping using per-SNP heritability",
+                paperUrl: "https://doi.org/10.1038/s41588-020-00735-5",
+                firstAuthor: "Weissbrod et al."
+            },
+            {
+                name: "MsCAVIAR",
+                year: 2021,
+                algorithm: "Exhaustive",
+                priorEffect: "Point-normal",
+                priorCausal: "Bernoulli",
+                functional: false,
+                multiAncestry: true,
+                multiTrait: false,
+                twas: false,
+                summaryStats: true,
+                description: "Multi-study CAVIAR for multiple populations",
+                paperUrl: "https://doi.org/10.1371/journal.pgen.1009733",
+                firstAuthor: "LaPierre et al."
+            },
+            {
+                name: "MA-FOCUS",
+                year: 2022,
+                algorithm: "Exhaustive",
+                priorEffect: "Point-normal",
+                priorCausal: "Bernoulli",
+                functional: false,
+                multiAncestry: true,
+                multiTrait: false,
+                twas: true,
+                summaryStats: true,
+                description: "Multi-ancestry FOCUS for TWAS",
+                paperUrl: "https://doi.org/10.1016/j.ajhg.2022.07.002",
+                firstAuthor: "Lu et al."
+            },
+            {
+                name: "SuSiER",
+                year: 2022,
+                algorithm: "IBSS",
+                priorEffect: "Normal",
+                priorCausal: "Multinomial",
+                functional: false,
+                multiAncestry: false,
+                multiTrait: false,
+                twas: false,
+                summaryStats: true,
+                description: "SuSiE with regularization for summary statistics",
+                paperUrl: "https://doi.org/10.1371/journal.pgen.1010299",
+                firstAuthor: "Zou et al."
+            },
+            {
+                name: "XMAP",
+                year: 2023,
+                algorithm: "VEM",
+                priorEffect: "Infinitesimal + MVN",
+                priorCausal: "Multinomial",
+                functional: false,
+                multiAncestry: true,
+                multiTrait: false,
+                twas: false,
+                summaryStats: true,
+                description: "Cross-population fine-mapping with variational EM",
+                paperUrl: "https://doi.org/10.1038/s41467-023-42614-7",
+                firstAuthor: "Cai et al."
+            },
+            {
+                name: "FiniMOM",
+                year: 2023,
+                algorithm: "MCMC",
+                priorEffect: "Non-local prior",
+                priorCausal: "Beta-binomial",
+                functional: false,
+                multiAncestry: false,
+                multiTrait: false,
+                twas: false,
+                summaryStats: true,
+                description: "Non-local prior for better causal variant detection",
+                paperUrl: "https://doi.org/10.1093/bioinformatics/btad396",
+                firstAuthor: "Karhunen et al."
+            },
+            {
+                name: "CARMA",
+                year: 2023,
+                algorithm: "SSS",
+                priorEffect: "Point-normal",
+                priorCausal: "Truncated Poisson-logistic",
+                functional: true,
+                multiAncestry: false,
+                multiTrait: false,
+                twas: false,
+                summaryStats: true,
+                description: "Bayesian model for meta-analysis fine-mapping",
+                paperUrl: "https://doi.org/10.1038/s41588-023-01392-0",
+                firstAuthor: "Yang et al."
+            },
+            {
+                name: "SparsePro",
+                year: 2023,
+                algorithm: "IBSS",
+                priorEffect: "Normal",
+                priorCausal: "Multinomial-softmax",
+                functional: true,
+                multiAncestry: false,
+                multiTrait: false,
+                twas: false,
+                summaryStats: true,
+                description: "Efficient fine-mapping integrating functional annotations",
+                paperUrl: "https://doi.org/10.1371/journal.pgen.1011104",
+                firstAuthor: "Zhang et al."
+            },
+            {
+                name: "RSparsePro",
+                year: 2024,
+                algorithm: "IBSS",
+                priorEffect: "Infinitesimal + Normal",
+                priorCausal: "Multinomial",
+                functional: false,
+                multiAncestry: false,
+                multiTrait: false,
+                twas: false,
+                summaryStats: true,
+                description: "Robust fine-mapping addressing LD mismatch",
+                paperUrl: "https://doi.org/10.1101/2024.10.29.620968",
+                firstAuthor: "Zhang et al."
+            },
+            {
+                name: "SuSiE-inf",
+                year: 2024,
+                algorithm: "IBSS",
+                priorEffect: "Infinitesimal + Normal",
+                priorCausal: "Multinomial",
+                functional: false,
+                multiAncestry: false,
+                multiTrait: false,
+                twas: false,
+                summaryStats: true,
+                description: "SuSiE with infinitesimal effects modeling",
+                paperUrl: "https://doi.org/10.1038/s41588-023-01597-3",
+                firstAuthor: "Cui et al."
+            },
+            {
+                name: "MESuSiE",
+                year: 2024,
+                algorithm: "IBSS",
+                priorEffect: "Mixture of MVNs",
+                priorCausal: "Multinomial",
+                functional: false,
+                multiAncestry: true,
+                multiTrait: false,
+                twas: false,
+                summaryStats: true,
+                description: "Multi-ancestry fine-mapping with shared/specific effects",
+                paperUrl: "https://doi.org/10.1038/s41588-024-01668-z",
+                firstAuthor: "Gao et al."
+            },
+            {
+                name: "h2-D2",
+                year: 2024,
+                algorithm: "MCMC",
+                priorEffect: "DE-Dirichlet",
+                priorCausal: "-",
+                functional: false,
+                multiAncestry: false,
+                multiTrait: false,
+                twas: false,
+                summaryStats: true,
+                description: "Global-local shrinkage prior approach",
+                paperUrl: "https://doi.org/10.1016/j.ajhg.2024.01.002",
+                firstAuthor: "Li et al."
+            },
+            {
+                name: "SuShiE",
+                year: 2024,
+                algorithm: "IBSS",
+                priorEffect: "MVN",
+                priorCausal: "Multinomial",
+                functional: false,
+                multiAncestry: true,
+                multiTrait: false,
+                twas: false,
+                summaryStats: true,
+                description: "Multi-ancestry molecular QTL fine-mapping",
+                paperUrl: "https://doi.org/10.1101/2024.04.15.24305836",
+                firstAuthor: "Lu et al."
+            },
+            {
+                name: "MultiSuSiE",
+                year: 2024,
+                algorithm: "IBSS",
+                priorEffect: "MVN",
+                priorCausal: "Multinomial",
+                functional: false,
+                multiAncestry: true,
+                multiTrait: false,
+                twas: false,
+                summaryStats: true,
+                description: "Multi-ancestry SuSiE framework",
+                paperUrl: "https://doi.org/10.1101/2024.05.13.24307291",
+                firstAuthor: "Rossen et al."
+            },
+            {
+                name: "GWFM",
+                year: 2024,
+                algorithm: "MCMC",
+                priorEffect: "Mixture of Normals",
+                priorCausal: "Bernoulli-probit",
+                functional: true,
+                multiAncestry: false,
+                multiTrait: false,
+                twas: false,
+                summaryStats: true,
+                description: "Genome-wide fine-mapping with functional annotations",
+                paperUrl: "https://doi.org/10.1101/2024.07.18.24310667",
+                firstAuthor: "Wu et al."
+            },
+            {
+                name: "SuSiEx",
+                year: 2024,
+                algorithm: "IBSS",
+                priorEffect: "Normal",
+                priorCausal: "Multinomial",
+                functional: false,
+                multiAncestry: true,
+                multiTrait: false,
+                twas: false,
+                summaryStats: true,
+                description: "Multi-ancestry SuSiE with effect correlation",
+                paperUrl: "https://doi.org/10.1038/s41588-024-01870-z",
+                firstAuthor: "Yuan et al."
+            },
+            {
+                name: "SuSiE2",
+                year: 2024,
+                algorithm: "IBSS",
+                priorEffect: "Normal",
+                priorCausal: "Multinomial-discrete",
+                functional: true,
+                multiAncestry: false,
+                multiTrait: false,
+                twas: false,
+                summaryStats: true,
+                description: "Integration of expression QTLs with fine-mapping",
+                paperUrl: "https://doi.org/10.1371/journal.pgen.1010929",
+                firstAuthor: "Zhang et al."
+            },
+            {
+                name: "mvSuSiE",
+                year: 2024,
+                algorithm: "IBSS",
+                priorEffect: "Mixture of MVN",
+                priorCausal: "Multinomial",
+                functional: false,
+                multiAncestry: false,
+                multiTrait: true,
+                twas: false,
+                summaryStats: true,
+                description: "Multi-trait fine-mapping using SuSiE framework",
+                paperUrl: "https://doi.org/10.1101/2023.04.14.536893",
+                firstAuthor: "Zou et al."
+            },
+            {
+                name: "cTWAS",
+                year: 2024,
+                algorithm: "IBSS",
+                priorEffect: "Normal",
+                priorCausal: "Multinomial",
+                functional: false,
+                multiAncestry: false,
+                multiTrait: false,
+                twas: true,
+                summaryStats: true,
+                description: "TWAS fine-mapping controlling for horizontal pleiotropy",
+                paperUrl: "https://doi.org/10.1038/s41588-023-01648-9",
+                firstAuthor: "Zhao et al."
+            },
+            {
+                name: "TGFM",
+                year: 2025,
+                algorithm: "IBSS",
+                priorEffect: "Normal",
+                priorCausal: "Multinomial",
+                functional: false,
+                multiAncestry: false,
+                multiTrait: false,
+                twas: true,
+                summaryStats: true,
+                description: "Cross-tissue TWAS fine-mapping",
+                paperUrl: "https://doi.org/10.1038/s41588-024-01994-2",
+                firstAuthor: "Strober et al."
+            }
+        ];
+
+        // Algorithm color mapping
+        const algorithmColors = {
+            "MCMC": "#e74c3c",
+            "Exhaustive": "#3498db",
+            "Exhaustive/Importance": "#2980b9",
+            "SSS": "#f39c12",
+            "Exhaustive/MCMC": "#8e44ad",
+            "DAP": "#27ae60",
+            "EM-MCMC": "#e67e22",
+            "IBSS": "#16a085",
+            "VEM": "#34495e"
+        };
+
+        let filteredData = [...finemappingData];
+        let svg, tooltip, zoom, g, width, height;
+
+        // Initialize
+        function init() {
+            populateFilters();
+            createTimeline();
+            createLegend();
+        }
+
+        function populateFilters() {
+            const algorithms = [...new Set(finemappingData.map(d => d.algorithm))];
+            const algorithmSelect = document.getElementById('algorithmFilter');
+            algorithms.forEach(alg => {
+                const option = document.createElement('option');
+                option.value = alg;
+                option.textContent = alg;
+                algorithmSelect.appendChild(option);
+            });
+
+            document.getElementById('algorithmFilter').addEventListener('change', applyFilters);
+            document.getElementById('featureFilter').addEventListener('change', applyFilters);
+        }
+
+        function applyFilters() {
+            const algorithmFilter = document.getElementById('algorithmFilter').value;
+            const featureFilter = document.getElementById('featureFilter').value;
+
+            filteredData = finemappingData.filter(d => {
+                if (algorithmFilter !== 'all' && d.algorithm !== algorithmFilter) {
+                    return false;
+                }
+
+                if (featureFilter !== 'all') {
+                    switch (featureFilter) {
+                        case 'functional': return d.functional;
+                        case 'multi-ancestry': return d.multiAncestry;
+                        case 'multi-trait': return d.multiTrait;
+                        case 'twas': return d.twas;
+                        case 'summary': return d.summaryStats;
+                        default: return true;
+                    }
+                }
+
+                return true;
+            });
+
+            createTimeline();
+        }
+
+        function resetFilters() {
+            document.getElementById('algorithmFilter').value = 'all';
+            document.getElementById('featureFilter').value = 'all';
+            filteredData = [...finemappingData];
+            createTimeline();
+        }
+
+        function createTimeline() {
+            const container = document.getElementById('timeline-container');
+            container.innerHTML = '';
+
+            if (filteredData.length === 0) {
+                container.innerHTML = '<div style="text-align: center; padding: 100px; font-size: 18px; color: #666;">No methods match the current filters</div>';
+                return;
+            }
+
+            const containerWidth = container.clientWidth;
+            const containerHeight = container.clientHeight;
+
+            // Set margins and dimensions
+            const margin = { top: 60, right: 80, bottom: 100, left: 80 };
+            width = Math.max(1400, containerWidth) - margin.left - margin.right;
+            height = containerHeight - margin.top - margin.bottom;
+
+            svg = d3.select(container)
+                .append('svg')
+                .attr('class', 'timeline-svg')
+                .attr('width', width + margin.left + margin.right)
+                .attr('height', height + margin.top + margin.bottom);
+
+            // Create zoom behavior
+            zoom = d3.zoom()
+                .scaleExtent([0.5, 3]) // Allow zoom from 50% to 300%
+                .on('zoom', handleZoom);
+
+            // Apply zoom to SVG
+            svg.call(zoom);
+
+            // Create main group for zoom/pan
+            g = svg.append('g')
+                .attr('transform', `translate(${margin.left},${margin.top})`);
+
+            // Get years and group methods by year
+            const years = [...new Set(filteredData.map(d => d.year))].sort();
+            const methodsByYear = d3.group(filteredData, d => d.year);
+
+            // Create scales
+            const xScale = d3.scaleLinear()
+                .domain(d3.extent(years))
+                .range([0, width]);
+
+            // Draw timeline axis
+            g.append('line')
+                .attr('class', 'timeline-axis')
+                .attr('x1', 0)
+                .attr('y1', height / 2)
+                .attr('x2', width)
+                .attr('y2', height / 2);
+
+            // Prepare all method positions first
+            const allMethodPositions = [];
+
+            years.forEach(year => {
+                const x = xScale(year);
+                const methods = methodsByYear.get(year);
+
+                // Year label (moved much further down to avoid overlapping with blocks)
+                g.append('text')
+                    .attr('class', 'year-label')
+                    .attr('x', x)
+                    .attr('y', height / 2 + 140)
+                    .text(year);
+
+                // Position methods vertically around the year - prevent overlapping
+                const methodHeight = 45;
+                const methodWidth = 120;
+                const minSpacing = methodHeight + 10; // Minimum space between methods
+                const branchDistance = 120; // Distance from timeline
+
+                // Calculate positions to prevent overlapping
+                const methodsAbove = [];
+                const methodsBelow = [];
+
+                // Separate methods into above and below timeline
+                methods.forEach((method, i) => {
+                    if (i % 2 === 0) {
+                        methodsAbove.push(method);
+                    } else {
+                        methodsBelow.push(method);
+                    }
+                });
+
+                // Store positions for later use
+                methodsAbove.forEach((method, i) => {
+                    const methodY = height / 2 - (i + 1) * minSpacing - methodHeight / 2;
+                    const methodX = x - methodWidth - branchDistance;
+                    allMethodPositions.push({
+                        method, methodX, methodY, methodWidth, methodHeight, x, isAbove: true
+                    });
+                });
+
+                methodsBelow.forEach((method, i) => {
+                    const methodY = height / 2 + (i + 1) * minSpacing - methodHeight / 2;
+                    const methodX = x + branchDistance;
+                    allMethodPositions.push({
+                        method, methodX, methodY, methodWidth, methodHeight, x, isAbove: false
+                    });
+                });
+            });
+
+            // First pass: Draw ALL connection lines
+            allMethodPositions.forEach(pos => {
+                if (pos.isAbove) {
+                    const connectionStartX = pos.methodX + pos.methodWidth;
+                    const connectionStartY = pos.methodY + pos.methodHeight / 2;
+                    const pathData = `M ${pos.x} ${height / 2}
+                                     Q ${pos.x - 30} ${height / 2 - 30} ${connectionStartX + 20} ${connectionStartY}
+                                     L ${connectionStartX} ${connectionStartY}`;
+
+                    g.append('path')
+                        .attr('class', 'connection-line')
+                        .attr('d', pathData)
+                        .attr('fill', 'none');
+                } else {
+                    const connectionStartX = pos.methodX;
+                    const connectionStartY = pos.methodY + pos.methodHeight / 2;
+                    const pathData = `M ${pos.x} ${height / 2}
+                                     Q ${pos.x + 30} ${height / 2 + 30} ${connectionStartX - 20} ${connectionStartY}
+                                     L ${connectionStartX} ${connectionStartY}`;
+
+                    g.append('path')
+                        .attr('class', 'connection-line')
+                        .attr('d', pathData)
+                        .attr('fill', 'none');
+                }
+            });
+
+            // Second pass: Draw ALL method blocks
+            allMethodPositions.forEach(pos => {
+                createMethodNode(g, pos.method, pos.methodX, pos.methodY, pos.methodWidth, pos.methodHeight);
+            });
+
+            // Create tooltip
+            tooltip = d3.select('body').select('#tooltip');
+        }
+
+        // Zoom event handler
+        function handleZoom(event) {
+            const { transform } = event;
+            g.attr('transform', `translate(${transform.x + 80},${transform.y + 60}) scale(${transform.k})`);
+        }
+
+        // Zoom control functions
+        function zoomIn() {
+            svg.transition().duration(300).call(
+                zoom.scaleBy, 1.5
+            );
+        }
+
+        function zoomOut() {
+            svg.transition().duration(300).call(
+                zoom.scaleBy, 1 / 1.5
+            );
+        }
+
+        function resetZoom() {
+            svg.transition().duration(500).call(
+                zoom.transform,
+                d3.zoomIdentity
+            );
+        }
+
+        // Helper function to create method nodes
+        function createMethodNode(g, method, methodX, methodY, methodWidth, methodHeight) {
+            // Method node group
+            const methodGroup = g.append('g')
+                .attr('class', 'method-node')
+                .attr('transform', `translate(${methodX}, ${methodY})`);
+
+            // Method rectangle
+            methodGroup.append('rect')
+                .attr('class', 'method-rect')
+                .attr('width', methodWidth)
+                .attr('height', methodHeight)
+                .attr('fill', algorithmColors[method.algorithm] || '#95a5a6');
+
+            // Method name
+            methodGroup.append('text')
+                .attr('class', 'method-text')
+                .attr('x', methodWidth / 2)
+                .attr('y', methodHeight / 2 - 8)
+                .attr('font-size', Math.min(12, methodWidth / method.name.length * 1.5))
+                .text(method.name);
+
+            // First author
+            if (method.firstAuthor) {
+                methodGroup.append('text')
+                    .attr('class', 'author-text')
+                    .attr('x', methodWidth / 2)
+                    .attr('y', methodHeight / 2 + 6)
+                    .attr('font-size', Math.min(8, methodWidth / method.firstAuthor.length * 1.1))
+                    .attr('fill', 'rgba(255,255,255,0.85)')
+                    .attr('text-anchor', 'middle')
+                    .text(method.firstAuthor);
+            }
+
+            // Feature badges (moved further down to avoid overlap)
+            let badgeY = methodHeight - 5;
+            const features = [];
+            if (method.functional) features.push('F');
+            if (method.multiAncestry) features.push('M');
+            if (method.multiTrait) features.push('T');
+            if (method.twas) features.push('W');
+
+            features.forEach((feature, idx) => {
+                methodGroup.append('text')
+                    .attr('class', 'feature-badge')
+                    .attr('x', 5 + idx * 12)
+                    .attr('y', badgeY)
+                    .attr('font-size', 8)
+                    .attr('fill', 'rgba(255,255,255,0.8)')
+                    .text(feature);
+            });
+
+            // Add event listeners
+            methodGroup
+                .on('mouseover', (event) => showTooltip(event, method))
+                .on('mouseout', hideTooltip)
+                .on('mousemove', (event) => moveTooltip(event))
+                .on('click', (event) => {
+                    if (method.paperUrl) {
+                        window.open(method.paperUrl, '_blank');
+                        event.stopPropagation();
+                    }
+                });
+        }
+
+        function createLegend() {
+            const legendContainer = document.getElementById('algorithmLegend');
+            legendContainer.innerHTML = '';
+
+            const algorithms = [...new Set(finemappingData.map(d => d.algorithm))];
+
+            algorithms.forEach(alg => {
+                const chip = document.createElement('div');
+                chip.className = 'algorithm-chip';
+                chip.style.backgroundColor = algorithmColors[alg] || '#95a5a6';
+
+                chip.innerHTML = `
+                    <div class="chip-color" style="background-color: ${algorithmColors[alg] || '#95a5a6'}"></div>
+                    ${alg}
+                `;
+
+                legendContainer.appendChild(chip);
+            });
+        }
+
+        function showTooltip(event, data) {
+            const features = [];
+            if (data.functional) features.push('Functional Annotation');
+            if (data.multiAncestry) features.push('Multi-Ancestry');
+            if (data.multiTrait) features.push('Multi-Trait');
+            if (data.twas) features.push('TWAS');
+            if (data.summaryStats) features.push('Summary Statistics');
+
+            tooltip.html(`
+                <h4>${data.name}</h4>
+                ${data.firstAuthor ? `
+                <div class="tooltip-section">
+                    <span class="tooltip-label">Authors:</span> ${data.firstAuthor}
+                </div>
+                ` : ''}
+                <div class="tooltip-section">
+                    <span class="tooltip-label">Year:</span> ${data.year}
+                </div>
+                <div class="tooltip-section">
+                    <span class="tooltip-label">Algorithm:</span> ${data.algorithm}
+                </div>
+                <div class="tooltip-section">
+                    <span class="tooltip-label">Prior on Effect:</span> ${data.priorEffect}
+                </div>
+                <div class="tooltip-section">
+                    <span class="tooltip-label">Prior on Causal:</span> ${data.priorCausal}
+                </div>
+                <div class="tooltip-section">
+                    <span class="tooltip-label">Features:</span> ${features.length > 0 ? features.join(', ') : 'None'}
+                </div>
+                <div class="tooltip-section">
+                    <span class="tooltip-label">Description:</span> ${data.description}
+                </div>
+                ${data.paperUrl ? `
+                <div class="tooltip-section" style="margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.2);">
+                    <span class="tooltip-label">📄 Click to view paper</span>
+                </div>
+                ` : ''}
+            `)
+            .style('opacity', 1);
+
+            moveTooltip(event);
+        }
+
+        function hideTooltip() {
+            tooltip.style('opacity', 0);
+        }
+
+        function moveTooltip(event) {
+            tooltip
+                .style('left', (event.pageX + 10) + 'px')
+                .style('top', (event.pageY - 10) + 'px');
+        }
+
+        // Initialize on load
+        window.addEventListener('load', init);
+        window.addEventListener('resize', () => {
+            setTimeout(createTimeline, 100);
+        });
+    </script>
+</body>
+</html>
